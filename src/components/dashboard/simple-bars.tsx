@@ -1,6 +1,12 @@
 import { cn } from "@/lib/cn";
 
-export type BarItem = { key: string; label: string; value: number };
+export type BarItem = {
+  key: string;
+  label: string;
+  value: number;
+  /** When set, shown next to hours (e.g. estimated revenue for client/project breakdown). */
+  revenue?: number;
+};
 
 type SimpleBarsProps = {
   items: BarItem[];
@@ -8,12 +14,20 @@ type SimpleBarsProps = {
   className?: string;
 };
 
+function formatMoney(n: number) {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function SimpleBars({
   items,
   valueSuffix = "h",
   className,
 }: SimpleBarsProps) {
   const max = Math.max(0.01, ...items.map((i) => i.value));
+  const showRevenue = items.some((i) => i.revenue !== undefined);
 
   if (items.length === 0) {
     return (
@@ -37,10 +51,22 @@ export function SimpleBars({
               style={{ width: `${Math.min(100, (i.value / max) * 100)}%` }}
             />
           </div>
-          <span className="w-14 shrink-0 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
-            {i.value.toFixed(1)}
-            {valueSuffix}
-          </span>
+          <div
+            className={cn(
+              "shrink-0 text-right tabular-nums text-zinc-500 dark:text-zinc-400",
+              showRevenue ? "w-[5.5rem]" : "w-14",
+            )}
+          >
+            <div>
+              {i.value.toFixed(1)}
+              {valueSuffix}
+            </div>
+            {showRevenue ? (
+              <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                {i.revenue !== undefined ? formatMoney(i.revenue) : "—"}
+              </div>
+            ) : null}
+          </div>
         </li>
       ))}
     </ul>

@@ -1,11 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { updateTimeEntryAction } from "@/actions/time-entries";
+import {
+  deleteTimeEntryAction,
+  updateTimeEntryAction,
+} from "@/actions/time-entries";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import type { TimeEntryListRow } from "@/lib/data/time-entries";
+import { dispatchAppDataRefresh } from "@/lib/app-events";
 import { cn } from "@/lib/cn";
 
 import type { QuickAddProjectOption } from "./quick-add-time-bar";
@@ -18,6 +24,14 @@ import {
   TableTh,
   TableWrap,
 } from "@/components/ui/table";
+
+type TriState = "all" | "yes" | "no";
+
+function matchesTriState(value: boolean, filter: TriState): boolean {
+  if (filter === "all") return true;
+  if (filter === "yes") return value === true;
+  return value === false;
+}
 
 function entryFieldSyncKey(row: TimeEntryListRow) {
   return [
@@ -68,11 +82,13 @@ function EditableRow({
   projects,
   onRowUpdate,
   onRowError,
+  onRowRemove,
 }: {
   row: TimeEntryListRow;
   projects: QuickAddProjectOption[];
   onRowUpdate: (next: TimeEntryListRow) => void;
   onRowError: (id: string, message: string | null) => void;
+  onRowRemove: (id: string) => void;
 }) {
   const [date, setDate] = useState(row.date);
   const [description, setDescription] = useState(row.description);
@@ -162,6 +178,24 @@ function EditableRow({
     void patch({ project_id: next });
   };
 
+  const onDelete = () => {
+    if (!window.confirm("Remove this time entry? This cannot be undone.")) {
+      return;
+    }
+    onRowError(row.id, null);
+    void (async () => {
+      setBusy(true);
+      const res = await deleteTimeEntryAction({ id: row.id });
+      setBusy(false);
+      if (!res.ok) {
+        onRowError(row.id, res.error);
+        return;
+      }
+      onRowRemove(row.id);
+      dispatchAppDataRefresh();
+    })();
+  };
+
   return (
     <TableRow className={cn(busy && "opacity-60")}>
       <TableTd className="w-[7.5rem] align-top">
@@ -237,6 +271,18 @@ function EditableRow({
           />
         </div>
       </TableTd>
+      <TableTd className="w-[4.5rem] align-top">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs text-zinc-500 hover:text-red-600 dark:hover:text-red-400"
+          disabled={busy}
+          onClick={onDelete}
+        >
+          Remove
+        </Button>
+      </TableTd>
     </TableRow>
   );
 }
@@ -247,6 +293,10 @@ export function TimeEntriesTable({
 }: TimeEntriesTableProps) {
   const [rows, setRows] = useState(initialEntries);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [filterBillable, setFilterBillable] = useState<TriState>("all");
+  const [filterInvoiced, setFilterInvoiced] = useState<TriState>("all");
+  const [filterTrackedExternal, setFilterTrackedExternal] =
+    useState<TriState>("all");
 
   /* Sync when RSC refreshes (e.g. quick add); avoids stale list after router.refresh(). */
   useEffect(() => {
@@ -255,6 +305,10 @@ export function TimeEntriesTable({
 
   const onRowUpdate = useCallback((next: TimeEntryListRow) => {
     setRows((rs) => rs.map((r) => (r.id === next.id ? next : r)));
+  }, []);
+
+  const onRowRemove = useCallback((id: string) => {
+    setRows((rs) => rs.filter((r) => r.id !== id));
   }, []);
 
   const onRowError = useCallback((id: string, message: string | null) => {
@@ -266,8 +320,70 @@ export function TimeEntriesTable({
     });
   }, []);
 
+  const filteredRows = useMemo(() => {
+    return rows.filter(
+      (r) =>
+        matchesTriState(r.billable, filterBillable) &&
+        matchesTriState(r.invoiced, filterInvoiced) &&
+        matchesTriState(r.tracked_external, filterTrackedExternal),
+    );
+  }, [rows, filterBillable, filterInvoiced, filterTrackedExternal]);
+
+  const filterSelectClass =
+    "h-8 border-zinc-200/80 bg-transparent text-xs dark:border-zinc-700/80";
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3 px-4 sm:px-5">
+        <div className="flex min-w-[6.5rem] flex-col gap-1">
+          <Label htmlFor="filter-billable" className="text-xs">
+            Billable
+          </Label>
+          <Select
+            id="filter-billable"
+            value={filterBillable}
+            onChange={(e) => setFilterBillable(e.target.value as TriState)}
+            className={filterSelectClass}
+          >
+            <option value="all">All</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </Select>
+        </div>
+        <div className="flex min-w-[6.5rem] flex-col gap-1">
+          <Label htmlFor="filter-invoiced" className="text-xs">
+            Invoiced
+          </Label>
+          <Select
+            id="filter-invoiced"
+            value={filterInvoiced}
+            onChange={(e) => setFilterInvoiced(e.target.value as TriState)}
+            className={filterSelectClass}
+          >
+            <option value="all">All</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </Select>
+        </div>
+        <div className="flex min-w-[6.5rem] flex-col gap-1">
+          <Label htmlFor="filter-external" className="text-xs">
+            Tracked ext.
+          </Label>
+          <Select
+            id="filter-external"
+            value={filterTrackedExternal}
+            onChange={(e) =>
+              setFilterTrackedExternal(e.target.value as TriState)
+            }
+            className={filterSelectClass}
+          >
+            <option value="all">All</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </Select>
+        </div>
+      </div>
+
       <TableWrap>
         <Table>
           <TableHead>
@@ -277,27 +393,38 @@ export function TimeEntriesTable({
               <TableTh>Description</TableTh>
               <TableTh className="text-right">Hrs</TableTh>
               <TableTh className="min-w-[9rem]">Flags</TableTh>
+              <TableTh className="w-[5rem]" />
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
                 <TableTd
-                  colSpan={5}
+                  colSpan={6}
                   className="py-12 text-center text-sm text-zinc-500"
                 >
                   No entries yet. Use the bar above — description, project,
                   hours, then Add (or ⌘↵).
                 </TableTd>
               </TableRow>
+            ) : filteredRows.length === 0 ? (
+              <TableRow>
+                <TableTd
+                  colSpan={6}
+                  className="py-12 text-center text-sm text-zinc-500"
+                >
+                  No entries match the current filters.
+                </TableTd>
+              </TableRow>
             ) : (
-              rows.map((row) => (
+              filteredRows.map((row) => (
                 <EditableRow
                   key={entryFieldSyncKey(row)}
                   row={row}
                   projects={projects}
                   onRowUpdate={onRowUpdate}
                   onRowError={onRowError}
+                  onRowRemove={onRowRemove}
                 />
               ))
             )}

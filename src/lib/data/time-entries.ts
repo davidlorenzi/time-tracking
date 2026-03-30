@@ -100,7 +100,7 @@ export async function listTimeEntriesWithProjects(
   const { data, error } = await supabase
     .from("time_entries")
     .select("*, projects ( id, name )")
-    .order("created_at", { ascending: false })
+    .order("date", { ascending: false })
     .limit(limit);
 
   if (error) return failure(mapPostgrestError(error));
@@ -142,7 +142,7 @@ export async function listTimeEntriesForExport(
       )
     `,
     )
-    .order("created_at", { ascending: false })
+    .order("date", { ascending: false })
     .limit(limit);
 
   if (error) return failure(mapPostgrestError(error));

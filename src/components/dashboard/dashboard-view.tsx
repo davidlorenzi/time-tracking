@@ -49,7 +49,7 @@ export function DashboardView({
   initialWeekTo,
   initialMonthValue,
 }: DashboardViewProps) {
-  const [period, setPeriod] = useState<Period>("week");
+  const [period, setPeriod] = useState<Period>("month");
   const [groupBy, setGroupBy] = useState<GroupBy>("client");
   const [weekFrom, setWeekFrom] = useState(initialWeekFrom);
   const [weekTo, setWeekTo] = useState(initialWeekTo);
@@ -134,12 +134,14 @@ export function DashboardView({
         key: c.clientId,
         label: c.clientName,
         value: c.hours,
+        revenue: c.revenue,
       }));
     }
     return summary.byProject.map((p) => ({
       key: p.projectId,
       label: p.projectName,
       value: p.hours,
+      revenue: p.revenue,
     }));
   }, [summary, groupBy]);
 
@@ -268,7 +270,7 @@ export function DashboardView({
           </p>
         ) : (
           <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
             <Card>
               <CardHeader className="border-0 pb-0">
                 <CardTitle className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -320,7 +322,7 @@ export function DashboardView({
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="mt-2 grid gap-6 lg:grid-cols-2 lg:gap-8">
             <Card>
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
                 <CardTitle>By day</CardTitle>
@@ -332,7 +334,12 @@ export function DashboardView({
 
             <Card>
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-                <CardTitle>Breakdown</CardTitle>
+                <div>
+                  <CardTitle>Breakdown</CardTitle>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Hours and est. revenue (daily rate ÷ 8 × billable h)
+                  </p>
+                </div>
                 <div className="flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-800">
                   <button
                     type="button"

@@ -27,7 +27,7 @@ export default async function TimeEntriesPage() {
     <>
       <PageHeader
         title="Time entries"
-        description="Use the quick bar for new logs. Edit rows inline; Bill / Inv / Ext toggle instantly."
+        description="Use the quick bar for new logs. Filter by billable, invoiced, or external tracking; edit inline; remove when needed."
       />
 
       <Card>
