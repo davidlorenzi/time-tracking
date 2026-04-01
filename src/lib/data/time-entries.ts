@@ -101,6 +101,8 @@ export async function listTimeEntriesWithProjects(
     .from("time_entries")
     .select("*, projects ( id, name )")
     .order("date", { ascending: false })
+    .order("name", { ascending: true, referencedTable: "projects" })
+    .order("description", { ascending: true })
     .limit(limit);
 
   if (error) return failure(mapPostgrestError(error));

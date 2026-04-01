@@ -40,6 +40,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
 
   const descRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState("");
+  const [date, setDate] = useState(localISODate);
   const [duration, setDuration] = useState(getLastDurationHours);
   const [projectOverride, setProjectOverride] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -81,7 +82,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
 
     startTransition(async () => {
       const res = await createTimeEntryAction({
-        date: localISODate(),
+        date,
         description: description.trim(),
         duration_hours: hours,
         project_id: projectId,
@@ -104,7 +105,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
       router.refresh();
       descRef.current?.focus();
     });
-  }, [description, duration, projectId, projectIds, router]);
+  }, [date, description, duration, projectId, projectIds, router]);
 
   const onFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -173,6 +174,19 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
                 </option>
               ))}
             </Select>
+          </div>
+          <div className="w-[8.5rem] shrink-0">
+            <label htmlFor={`${formId}-date`} className="sr-only">
+              Date
+            </label>
+            <Input
+              id={`${formId}-date`}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={!hasProjects || pending}
+              className="h-9 text-sm"
+            />
           </div>
           <div className="w-20 shrink-0">
             <label htmlFor={durationId} className="sr-only">
