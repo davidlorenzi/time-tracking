@@ -13,6 +13,7 @@ export const projectCreateSchema = z.object({
   status: projectStatusSchema.optional().default("Active"),
   client_id: uuidSchema,
   description: z.string().trim().max(20_000).optional(),
+  default_billable: z.boolean().default(true),
 });
 
 export const projectUpdateSchema = z.object({
@@ -21,6 +22,7 @@ export const projectUpdateSchema = z.object({
   status: projectStatusSchema.optional(),
   client_id: uuidSchema.optional(),
   description: z.string().trim().max(20_000).nullable().optional(),
+  default_billable: z.boolean().optional(),
 });
 
 export const projectIdSchema = z.object({

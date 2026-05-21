@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/client/time-entry-prefs";
 import { localISODate } from "@/lib/dates";
 
-export type QuickAddProjectOption = { id: string; name: string };
+export type QuickAddProjectOption = { id: string; name: string; default_billable: boolean };
 
 type QuickAddTimeBarProps = {
   projects: QuickAddProjectOption[];
@@ -43,6 +44,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
   const [date, setDate] = useState(localISODate);
   const [duration, setDuration] = useState(getLastDurationHours);
   const [projectOverride, setProjectOverride] = useState<string | null>(null);
+  const [billable, setBillable] = useState(true);
   const [message, setMessage] = useState<{
     type: "ok" | "err";
     text: string;
@@ -67,6 +69,11 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
       : null;
   const projectId = effectiveOverride ?? autoProjectId;
 
+  useEffect(() => {
+    const project = projects.find((p) => p.id === projectId);
+    if (project) setBillable(project.default_billable);
+  }, [projectId, projects]);
+
   const submit = useCallback(() => {
     setMessage(null);
     const hours = Number.parseFloat(duration.replace(",", "."));
@@ -86,7 +93,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
         description: description.trim(),
         duration_hours: hours,
         project_id: projectId,
-        billable: true,
+        billable,
         invoiced: false,
         tracked_external: false,
       });
@@ -148,75 +155,81 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
             className="h-9 text-sm"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-          <div className="min-w-[8rem] flex-1 sm:max-w-[11rem] sm:flex-initial">
-            <label htmlFor={projectIdField} className="sr-only">
-              Project
-            </label>
-            <Select
-              id={projectIdField}
-              value={projectId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setProjectOverride(v);
-                if (v) setLastProjectId(v);
-              }}
-              disabled={!hasProjects || pending}
-              className="h-9 text-sm"
-              required
-            >
-              <option value="" disabled={projects.length > 0}>
-                Project…
-              </option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
+        {/* On mobile: two sub-rows (project+date, then hours+add).
+            On sm+: sm:contents dissolves the wrappers so all 4 sit in one flex row. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-2">
+          <div className="flex gap-2 sm:contents">
+            <div className="min-w-0 flex-1 sm:max-w-[11rem] sm:flex-initial">
+              <label htmlFor={projectIdField} className="sr-only">
+                Project
+              </label>
+              <Select
+                id={projectIdField}
+                value={projectId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setProjectOverride(v);
+                  if (v) setLastProjectId(v);
+                }}
+                disabled={!hasProjects || pending}
+                className="h-9 text-sm"
+                required
+              >
+                <option value="" disabled={projects.length > 0}>
+                  Project…
                 </option>
-              ))}
-            </Select>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="w-[8.5rem] shrink-0">
+              <label htmlFor={`${formId}-date`} className="sr-only">
+                Date
+              </label>
+              <Input
+                id={`${formId}-date`}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                disabled={!hasProjects || pending}
+                className="h-9 text-sm"
+              />
+            </div>
           </div>
-          <div className="w-[8.5rem] shrink-0">
-            <label htmlFor={`${formId}-date`} className="sr-only">
-              Date
-            </label>
-            <Input
-              id={`${formId}-date`}
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+          <div className="flex items-center gap-2 sm:contents">
+            <div className="w-20 shrink-0">
+              <label htmlFor={durationId} className="sr-only">
+                Hours
+              </label>
+              <Input
+                id={durationId}
+                type="text"
+                inputMode="decimal"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                onBlur={() => {
+                  const h = Number.parseFloat(duration.replace(",", "."));
+                  if (!Number.isNaN(h) && h > 0) {
+                    setLastDurationHours(String(h));
+                  }
+                }}
+                disabled={!hasProjects || pending}
+                className="h-9 text-center text-sm tabular-nums"
+                aria-label="Duration in hours"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="sm"
               disabled={!hasProjects || pending}
-              className="h-9 text-sm"
-            />
+              className="h-9 flex-1 px-4 sm:flex-none sm:shrink-0"
+            >
+              {pending ? "…" : "Add"}
+            </Button>
           </div>
-          <div className="w-20 shrink-0">
-            <label htmlFor={durationId} className="sr-only">
-              Hours
-            </label>
-            <Input
-              id={durationId}
-              type="text"
-              inputMode="decimal"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              onBlur={() => {
-                const h = Number.parseFloat(duration.replace(",", "."));
-                if (!Number.isNaN(h) && h > 0) {
-                  setLastDurationHours(String(h));
-                }
-              }}
-              disabled={!hasProjects || pending}
-              className="h-9 text-center text-sm tabular-nums"
-              aria-label="Duration in hours"
-            />
-          </div>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!hasProjects || pending}
-            className="h-9 shrink-0 px-4"
-          >
-            {pending ? "…" : "Add"}
-          </Button>
         </div>
       </form>
 

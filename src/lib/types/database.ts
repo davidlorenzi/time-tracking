@@ -14,6 +14,7 @@ export type ProjectRow = {
   status: ProjectStatus;
   client_id: string;
   description: string | null;
+  default_billable: boolean;
   created_at: string;
 };
 
@@ -59,6 +60,7 @@ export type Database = {
           status?: ProjectStatus;
           client_id: string;
           description?: string | null;
+          default_billable?: boolean;
           created_at?: string;
         };
         Update: {
@@ -67,6 +69,7 @@ export type Database = {
           status?: ProjectStatus;
           client_id?: string;
           description?: string | null;
+          default_billable?: boolean;
           created_at?: string;
         };
         Relationships: [
