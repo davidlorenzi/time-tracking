@@ -20,6 +20,7 @@ export async function createProject(
       status: input.status,
       client_id: input.client_id,
       description: optionalTextToNull(input.description),
+      default_billable: input.default_billable,
     })
     .select()
     .single();
@@ -41,6 +42,7 @@ export async function updateProject(
   if (patch.description !== undefined) {
     row.description = optionalTextToNull(patch.description);
   }
+  if (patch.default_billable !== undefined) row.default_billable = patch.default_billable;
 
   if (Object.keys(row).length === 0) {
     return failure("No fields to update.");
