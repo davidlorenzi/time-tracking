@@ -13,7 +13,8 @@ import { addDaysToISODate } from "@/lib/dates";
 import type { PeriodSummary } from "@/lib/data/summaries";
 import { cn } from "@/lib/cn";
 
-import { SimpleBars, type BarItem } from "./simple-bars";
+import { BreakdownChart, type BreakdownItem } from "./breakdown-chart";
+import { DailyHoursChart } from "./daily-hours-chart";
 
 type DashboardViewProps = {
   initialWeekSummary: PeriodSummary | null;
@@ -127,32 +128,27 @@ export function DashboardView({
     });
   };
 
-  const barItems: BarItem[] = useMemo(() => {
+  const breakdownItems: BreakdownItem[] = useMemo(() => {
     if (!summary) return [];
     if (groupBy === "client") {
       return summary.byClient.map((c) => ({
         key: c.clientId,
         label: c.clientName,
-        value: c.hours,
+        hours: c.hours,
         revenue: c.revenue,
       }));
     }
     return summary.byProject.map((p) => ({
       key: p.projectId,
       label: p.projectName,
-      value: p.hours,
+      hours: p.hours,
       revenue: p.revenue,
     }));
   }, [summary, groupBy]);
 
-  const dayBars: BarItem[] = useMemo(() => {
+  const sortedDays = useMemo(() => {
     if (!summary) return [];
-    const days = [...summary.byDay].sort((a, b) => a.date.localeCompare(b.date));
-    return days.map((d) => ({
-      key: d.date,
-      label: d.date,
-      value: d.hours,
-    }));
+    return [...summary.byDay].sort((a, b) => a.date.localeCompare(b.date));
   }, [summary]);
 
   return (
@@ -229,7 +225,7 @@ export function DashboardView({
                 type="month"
                 value={monthValue}
                 onChange={(e) => setMonthValue(e.target.value)}
-                className="h-9 w-44"
+                className="h-10 w-44"
               />
             </div>
             <Button
@@ -265,13 +261,18 @@ export function DashboardView({
         ) : null}
 
         {!summary ? (
-          <p className="text-sm text-zinc-500">
-            No summary data. Add time entries and ensure Supabase is configured.
-          </p>
+          <div className="flex flex-col items-center gap-1 py-12 text-center">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No summary data.
+            </p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">
+              Add time entries and ensure Supabase is configured.
+            </p>
+          </div>
         ) : (
           <>
           <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-            <Card>
+            <Card className="transition-shadow hover:shadow-md">
               <CardHeader className="border-0 pb-0">
                 <CardTitle className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                   Total hours
@@ -283,7 +284,7 @@ export function DashboardView({
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="transition-shadow hover:shadow-md">
               <CardHeader className="border-0 pb-0">
                 <CardTitle className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                   Billable
@@ -295,7 +296,7 @@ export function DashboardView({
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="transition-shadow hover:shadow-md">
               <CardHeader className="border-0 pb-0">
                 <CardTitle className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                   Non-billable
@@ -307,7 +308,7 @@ export function DashboardView({
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="transition-shadow hover:shadow-md">
               <CardHeader className="border-0 pb-0">
                 <CardTitle className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                   Est. revenue
@@ -328,7 +329,7 @@ export function DashboardView({
                 <CardTitle>By day</CardTitle>
               </CardHeader>
               <CardContent>
-                <SimpleBars items={dayBars} />
+                <DailyHoursChart days={sortedDays} />
               </CardContent>
             </Card>
 
@@ -345,7 +346,7 @@ export function DashboardView({
                     type="button"
                     onClick={() => setGroupBy("client")}
                     className={cn(
-                      "rounded-md px-2 py-1 text-xs font-medium",
+                      "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                       groupBy === "client"
                         ? "bg-zinc-200 dark:bg-zinc-700"
                         : "text-zinc-500",
@@ -357,7 +358,7 @@ export function DashboardView({
                     type="button"
                     onClick={() => setGroupBy("project")}
                     className={cn(
-                      "rounded-md px-2 py-1 text-xs font-medium",
+                      "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                       groupBy === "project"
                         ? "bg-zinc-200 dark:bg-zinc-700"
                         : "text-zinc-500",
@@ -368,7 +369,7 @@ export function DashboardView({
                 </div>
               </CardHeader>
               <CardContent>
-                <SimpleBars items={barItems} />
+                <BreakdownChart items={breakdownItems} />
               </CardContent>
             </Card>
           </div>

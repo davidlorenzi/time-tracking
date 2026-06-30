@@ -27,7 +27,7 @@ export function BottomNav() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium leading-tight",
+                  "flex flex-col items-center gap-0.5 rounded-lg py-2 text-tiny font-medium leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400",
                   active
                     ? "text-zinc-900 dark:text-zinc-50"
                     : "text-zinc-500 dark:text-zinc-400",
@@ -36,7 +36,7 @@ export function BottomNav() {
               >
                 <Icon
                   className={cn(
-                    "h-5 w-5",
+                    "h-5 w-5 transition-opacity",
                     active ? "opacity-100" : "opacity-65",
                   )}
                 />
