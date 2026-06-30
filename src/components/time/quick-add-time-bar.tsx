@@ -152,7 +152,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
             placeholder="What did you work on? ⌘↵ save"
             autoComplete="off"
             disabled={!hasProjects || pending}
-            className="h-9 text-sm"
+            className="h-10 text-sm"
           />
         </div>
         {/* On mobile: two sub-rows (project+date, then hours+add).
@@ -172,7 +172,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
                   if (v) setLastProjectId(v);
                 }}
                 disabled={!hasProjects || pending}
-                className="h-9 text-sm"
+                className="h-10 text-sm"
                 required
               >
                 <option value="" disabled={projects.length > 0}>
@@ -195,7 +195,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={!hasProjects || pending}
-                className="h-9 text-sm"
+                className="h-10 text-sm"
               />
             </div>
           </div>
@@ -217,7 +217,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
                   }
                 }}
                 disabled={!hasProjects || pending}
-                className="h-9 text-center text-sm tabular-nums"
+                className="h-10 text-center text-sm tabular-nums"
                 aria-label="Duration in hours"
               />
             </div>
@@ -225,7 +225,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
               type="submit"
               size="sm"
               disabled={!hasProjects || pending}
-              className="h-9 flex-1 px-4 sm:flex-none sm:shrink-0"
+              className="h-10 flex-1 px-4 sm:flex-none sm:shrink-0"
             >
               {pending ? "…" : "Add"}
             </Button>

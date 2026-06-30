@@ -255,7 +255,7 @@ export function CsvImportWizard({ projectNames }: CsvImportWizardProps) {
                         return next;
                       });
                     }}
-                    className="h-9 text-sm"
+                    className="h-10 text-sm"
                   >
                     <option value="">
                       {f.required ? "Select column…" : "— Skip —"}
