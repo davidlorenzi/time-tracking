@@ -10,18 +10,24 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
         "title": "Time widget",
-        "width": 340,
-        "height": 460,
-        "visible": false,
+        "width": 720,
+        "height": 520,
+        "visible": true,
         "decorations": false,
         "resizable": false,
-        "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": true
+        "shadow": true,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["sidebar"],
+          "state": "active",
+          "radius": 20
+        }
       }
     ],
     "security": {
