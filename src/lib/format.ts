@@ -1,13 +1,23 @@
+/**
+ * Italian-style number (1.234,5), computed by hand: `Intl` groups 4-digit numbers
+ * differently on Node and in browsers, which breaks hydration.
+ */
+export function formatNumber(value: number, maxDecimals = 2): string {
+  const factor = 10 ** maxDecimals;
+  const rounded = Math.round(Math.abs(value) * factor) / factor;
+  const [int, dec = ""] = rounded.toFixed(maxDecimals).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const decimals = dec.replace(/0+$/, "");
+  const sign = value < 0 && rounded !== 0 ? "-" : "";
+  return `${sign}${grouped}${decimals ? `,${decimals}` : ""}`;
+}
+
 export function formatMoney(value: number): string {
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return `${formatNumber(value, 0)} €`;
 }
 
 export function formatHours(value: number): string {
-  return `${(Math.round(value * 100) / 100).toLocaleString("it-IT")}h`;
+  return `${formatNumber(value, 2)}h`;
 }
 
 export function formatLongDate(iso: string): string {

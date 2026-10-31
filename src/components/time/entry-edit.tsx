@@ -229,7 +229,7 @@ export function EntryCard({
           onChange={(e) => setDate(e.target.value)}
           onBlur={onDateBlur}
           disabled={busy}
-          className="h-10 flex-1 border-zinc-200/80 bg-transparent px-2 text-sm dark:border-zinc-700/80"
+          className="h-10 min-w-0 flex-1 border-zinc-200/80 bg-transparent px-2 text-sm dark:border-zinc-700/80"
         />
         <div className="flex shrink-0 items-center gap-1">
           <Input
@@ -239,7 +239,7 @@ export function EntryCard({
             onChange={(e) => setDuration(e.target.value)}
             onBlur={onDurationBlur}
             disabled={busy}
-            className="h-10 w-16 border-zinc-200/80 bg-transparent px-2 text-right text-sm tabular-nums dark:border-zinc-700/80"
+            className="h-10 w-16! border-zinc-200/80 bg-transparent px-2 text-right text-sm tabular-nums dark:border-zinc-700/80"
             aria-label="Hours"
           />
           <span className="text-xs text-zinc-400">h</span>

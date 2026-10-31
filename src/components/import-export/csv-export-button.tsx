@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 import { localISODate, monthCalendarRange } from "@/lib/dates";
-import { formatHours } from "@/lib/format";
+import { formatHours, formatNumber } from "@/lib/format";
 
 type TriState = "all" | "yes" | "no";
 
@@ -262,7 +262,7 @@ export function CsvExportButton({ clients, projects }: Props) {
             (preview
               ? preview.count === 0
                 ? "No entries match these filters."
-                : `${preview.count.toLocaleString("it-IT")} entries · ${formatHours(preview.hours)}`
+                : `${formatNumber(preview.count, 0)} entries · ${formatHours(preview.hours)}`
               : "Counting…")}
         </p>
       </div>
