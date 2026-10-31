@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, SECONDARY_NAV_ITEMS } from "@/lib/nav";
 
-import { navIconForIndex } from "./nav-icons";
+import { navIconForIndex, secondaryIconForHref } from "./nav-icons";
 import { NavLink } from "./nav-link";
 
 export function TopNav() {
@@ -29,6 +29,22 @@ export function TopNav() {
               >
                 <Icon className="h-4 w-4 opacity-70" />
                 {item.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+        <nav className="flex items-center gap-1" aria-label="Secondary">
+          {SECONDARY_NAV_ITEMS.map((item) => {
+            const Icon = secondaryIconForHref(item.href);
+            return (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                aria-label={item.label}
+                className="flex h-10 items-center gap-2 px-2.5 text-sm font-medium md:px-3"
+              >
+                <Icon className="h-5 w-5 opacity-70 md:h-4 md:w-4" />
+                <span className="hidden lg:inline">{item.label}</span>
               </NavLink>
             );
           })}

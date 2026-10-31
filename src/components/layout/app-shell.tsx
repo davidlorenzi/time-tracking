@@ -5,6 +5,8 @@ import {
   type QuickAddProjectOption,
 } from "@/components/time/quick-add-time-bar";
 
+import { ToastProvider } from "@/components/ui/toast";
+
 import { BottomNav } from "./bottom-nav";
 import { TopNav } from "./top-nav";
 
@@ -15,6 +17,7 @@ type AppShellProps = {
 
 export function AppShell({ children, projects }: AppShellProps) {
   return (
+    <ToastProvider>
     <div className="flex min-h-dvh flex-col">
       <a
         href="#main-content"
@@ -34,5 +37,6 @@ export function AppShell({ children, projects }: AppShellProps) {
       </div>
       <BottomNav />
     </div>
+    </ToastProvider>
   );
 }

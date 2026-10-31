@@ -33,3 +33,23 @@ export const timeEntryIdSchema = z.object({
 
 export type TimeEntryCreateInput = z.infer<typeof timeEntryCreateSchema>;
 export type TimeEntryUpdateInput = z.infer<typeof timeEntryUpdateSchema>;
+
+const triState = z.enum(["all", "yes", "no"]).default("all");
+
+export const timeEntryExportFilterSchema = z
+  .object({
+    from: isoDate.optional(),
+    to: isoDate.optional(),
+    clientIds: z.array(uuidSchema).max(500).default([]),
+    projectIds: z.array(uuidSchema).max(500).default([]),
+    billable: triState,
+    invoiced: triState,
+    trackedExternal: triState,
+    search: z.string().trim().max(200).optional(),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, {
+    message: "`from` must be on or before `to`",
+    path: ["to"],
+  });
+
+export type TimeEntryExportFilters = z.infer<typeof timeEntryExportFilterSchema>;

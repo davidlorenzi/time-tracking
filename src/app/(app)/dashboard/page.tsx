@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  formatMonthValue,
-  monthCalendarRange,
-  weekRangeContaining,
-} from "@/lib/dates";
+import { getSettingsRow } from "@/lib/data/settings";
 import { getSummaryForRange } from "@/lib/data/summaries";
+import { monthCalendarRange } from "@/lib/dates";
+import { resolveSettings } from "@/lib/settings-defaults";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -16,29 +14,25 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const now = new Date();
-  const week = weekRangeContaining(now);
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  const monthR = monthCalendarRange(y, m);
+  const monthR = monthCalendarRange(now.getFullYear(), now.getMonth() + 1);
 
   const supabase = await createClient();
-  const [wRes, moRes] = await Promise.all([
-    getSummaryForRange(supabase, week.from, week.to),
-    getSummaryForRange(supabase, monthR.from, monthR.to),
+  const [summary, settingsRes] = await Promise.all([
+    getSummaryForRange(supabase, monthR.from, monthR.to, { withComparison: true }),
+    getSettingsRow(supabase),
   ]);
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        description="Weekly and monthly hours, billable split, and estimated revenue from client daily rates."
+        description="Hours, billable split, revenue (hourly and flat-rate projects) and trends vs the previous period."
       />
       <DashboardView
-        initialWeekSummary={wRes.ok ? wRes.data : null}
-        initialMonthSummary={moRes.ok ? moRes.data : null}
-        initialWeekFrom={week.from}
-        initialWeekTo={week.to}
-        initialMonthValue={formatMonthValue(y, m)}
+        initialSummary={summary.ok ? summary.data : null}
+        initialFrom={monthR.from}
+        initialTo={monthR.to}
+        settings={resolveSettings(settingsRes.ok ? settingsRes.data : null)}
       />
     </>
   );

@@ -12,10 +12,22 @@ export const metadata: Metadata = {
   title: "Time entries",
 };
 
-export default async function TimeEntriesPage() {
+type Props = {
+  searchParams: Promise<{ from?: string; to?: string; client?: string; project?: string }>;
+};
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export default async function TimeEntriesPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const from = params.from && ISO_DATE.test(params.from) ? params.from : "";
+  const to = params.to && ISO_DATE.test(params.to) ? params.to : "";
   const supabase = await createClient();
   const [entriesRes, projectsRes, clientsRes] = await Promise.all([
-    entriesRepo.listTimeEntriesWithProjects(supabase),
+    entriesRepo.listTimeEntriesWithProjects(supabase, {
+      from: from || undefined,
+      to: to || undefined,
+    }),
     projectsRepo.listProjects(supabase),
     clientsRepo.listClients(supabase),
   ]);
@@ -49,6 +61,12 @@ export default async function TimeEntriesPage() {
             initialEntries={entries}
             projects={projects}
             clients={clients}
+            initialFilters={{
+              from,
+              to,
+              clientId: params.client ?? "all",
+              projectId: params.project ?? "all",
+            }}
           />
         </CardContent>
       </Card>

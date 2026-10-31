@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMoney } from "@/lib/format";
 import {
   Bar,
   BarChart,
@@ -19,14 +20,9 @@ export type BreakdownItem = {
 
 type BreakdownChartProps = {
   items: BreakdownItem[];
+  metric?: "hours" | "revenue";
+  onSelect?: (key: string) => void;
 };
-
-function formatMoney(n: number) {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 function ChartTooltip({
   active,
@@ -46,7 +42,7 @@ function ChartTooltip({
   );
 }
 
-export function BreakdownChart({ items }: BreakdownChartProps) {
+export function BreakdownChart({ items, metric = "hours", onSelect }: BreakdownChartProps) {
   if (items.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No data.</p>;
   }
@@ -78,9 +74,14 @@ export function BreakdownChart({ items }: BreakdownChartProps) {
           />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "currentColor", opacity: 0.06 }} />
           <Bar
-            dataKey="hours"
-            fill="#3f3f46"
+            dataKey={metric}
+            fill={metric === "hours" ? "#3f3f46" : "#10b981"}
             radius={[0, 4, 4, 0]}
+            cursor={onSelect ? "pointer" : undefined}
+            onClick={(d) => {
+              const key = (d as unknown as { payload?: BreakdownItem }).payload?.key;
+              if (onSelect && key) onSelect(key);
+            }}
             isAnimationActive
             animationDuration={400}
           />

@@ -10,6 +10,7 @@ import { normalizeProjectName } from "@/lib/csv-dates";
 import { toNumber } from "@/lib/data/revenue";
 import { parseActionInput } from "@/lib/validation/parse-action-input";
 import { csvImportBatchSchema } from "@/lib/validation/csv-import";
+import { timeEntryExportFilterSchema } from "@/lib/validation/time-entries";
 
 function exportRowCells(
   r: entriesRepo.TimeEntryExportRow,
@@ -30,11 +31,22 @@ function exportRowCells(
   ];
 }
 
-export async function exportTimeEntriesCsvAction(): Promise<
-  ActionResult<string>
-> {
+export async function previewTimeEntriesExportAction(
+  input: unknown,
+): Promise<ActionResult<{ count: number; hours: number }>> {
+  const parsed = parseActionInput(timeEntryExportFilterSchema, input ?? {});
+  if (!parsed.ok) return parsed;
   const supabase = await createClient();
-  const res = await entriesRepo.listTimeEntriesForExport(supabase);
+  return entriesRepo.countTimeEntriesForExport(supabase, parsed.data);
+}
+
+export async function exportTimeEntriesCsvAction(
+  input?: unknown,
+): Promise<ActionResult<string>> {
+  const parsed = parseActionInput(timeEntryExportFilterSchema, input ?? {});
+  if (!parsed.ok) return parsed;
+  const supabase = await createClient();
+  const res = await entriesRepo.listTimeEntriesForExport(supabase, parsed.data);
   if (!res.ok) return res;
 
   const headers = [

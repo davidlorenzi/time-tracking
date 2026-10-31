@@ -11,6 +11,7 @@ type NavLinkProps = {
   className?: string;
   /** Match prefix (e.g. parent section) */
   matchPrefix?: boolean;
+  "aria-label"?: string;
 };
 
 export function NavLink({
@@ -18,6 +19,7 @@ export function NavLink({
   children,
   className,
   matchPrefix = false,
+  "aria-label": ariaLabel,
 }: NavLinkProps) {
   const pathname = usePathname();
   const active = matchPrefix
@@ -35,6 +37,7 @@ export function NavLink({
         className,
       )}
       aria-current={active ? "page" : undefined}
+      aria-label={ariaLabel}
     >
       {children}
     </Link>

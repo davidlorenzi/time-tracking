@@ -14,7 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Sheet } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
   Table,
   TableBody,
@@ -25,16 +27,9 @@ import {
   TableWrap,
 } from "@/components/ui/table";
 import { dispatchAppDataRefresh } from "@/lib/app-events";
-import type { ProjectRow, ProjectStatus } from "@/lib/types/database";
+import { formatHours, formatMoney } from "@/lib/format";
+import type { BillingType, ProjectRow, ProjectStatus } from "@/lib/types/database";
 import { cn } from "@/lib/cn";
-
-function IconTrash() {
-  return (
-    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  );
-}
 
 type ClientOption = { id: string; name: string };
 
@@ -42,6 +37,12 @@ type ProjectsPageClientProps = {
   initialProjects: ProjectRow[];
   clients: ClientOption[];
   listError?: string | null;
+};
+
+const BILLING_LABELS: Record<BillingType, string> = {
+  hourly: "Hourly (client daily rate)",
+  fixed_budget: "Flat rate with hours budget",
+  fixed_monthly: "Flat rate per month",
 };
 
 function StatusBadge({ status }: { status: ProjectStatus }) {
@@ -59,50 +60,122 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
   );
 }
 
+function billingSummary(p: ProjectRow): string {
+  if (p.billing_type === "fixed_budget") {
+    return `${formatMoney(Number(p.flat_amount ?? 0))} · ${formatHours(Number(p.budget_hours ?? 0))}`;
+  }
+  if (p.billing_type === "fixed_monthly") {
+    return `${formatMoney(Number(p.flat_amount ?? 0))}/month`;
+  }
+  return "Hourly";
+}
+
+type FormState = {
+  name: string;
+  clientId: string;
+  status: ProjectStatus;
+  description: string;
+  defaultBillable: boolean;
+  billingType: BillingType;
+  flatAmount: string;
+  budgetHours: string;
+};
+
+function emptyForm(): FormState {
+  return {
+    name: "",
+    clientId: "",
+    status: "Active",
+    description: "",
+    defaultBillable: true,
+    billingType: "hourly",
+    flatAmount: "",
+    budgetHours: "",
+  };
+}
+
+function formFromProject(p: ProjectRow): FormState {
+  return {
+    name: p.name,
+    clientId: p.client_id,
+    status: p.status,
+    description: p.description ?? "",
+    defaultBillable: p.default_billable,
+    billingType: p.billing_type,
+    flatAmount: p.flat_amount != null ? String(p.flat_amount) : "",
+    budgetHours: p.budget_hours != null ? String(p.budget_hours) : "",
+  };
+}
+
 export function ProjectsPageClient({
   initialProjects,
   clients,
   listError = null,
 }: ProjectsPageClientProps) {
   const router = useRouter();
-  const clientNameById = Object.fromEntries(
-    clients.map((c) => [c.id, c.name]),
-  );
+  const { toast, confirm } = useToast();
+  const clientNameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
 
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [status, setStatus] = useState<ProjectStatus>("Active");
-  const [description, setDescription] = useState("");
-  const [defaultBillable, setDefaultBillable] = useState(true);
+  const [sheet, setSheet] = useState<{ mode: "create" } | { mode: "edit"; project: ProjectRow } | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const refresh = () => {
     dispatchAppDataRefresh();
     router.refresh();
   };
 
-  const submitCreate = () => {
+  const openCreate = () => {
+    setForm(emptyForm());
     setFormError(null);
+    setSheet({ mode: "create" });
+  };
+
+  const openEdit = (project: ProjectRow) => {
+    setForm(formFromProject(project));
+    setFormError(null);
+    setSheet({ mode: "edit", project });
+  };
+
+  const submit = () => {
+    setFormError(null);
+    const flat = form.billingType === "hourly" ? null : form.flatAmount.trim().replace(",", ".");
+    const budget = form.billingType === "fixed_budget" ? form.budgetHours.trim().replace(",", ".") : null;
+    if (form.billingType !== "hourly" && !flat) return setFormError("Flat amount is required.");
+    if (form.billingType === "fixed_budget" && !budget) return setFormError("Budget hours are required.");
+
+    const common = {
+      name: form.name,
+      client_id: form.clientId,
+      status: form.status,
+      default_billable: form.defaultBillable,
+      billing_type: form.billingType,
+      flat_amount: flat,
+      budget_hours: budget,
+    };
+
     startTransition(async () => {
-      const res = await createProjectAction({
-        name,
-        client_id: clientId,
-        status,
-        description: description.trim() === "" ? undefined : description.trim(),
-        default_billable: defaultBillable,
-      });
+      const res =
+        sheet?.mode === "edit"
+          ? await updateProjectAction({
+              id: sheet.project.id,
+              ...common,
+              description: form.description.trim() === "" ? null : form.description.trim(),
+            })
+          : await createProjectAction({
+              ...common,
+              description: form.description.trim() === "" ? undefined : form.description.trim(),
+            });
       if (!res.ok) {
         setFormError(res.error);
         return;
       }
-      setName("");
-      setClientId("");
-      setStatus("Active");
-      setDescription("");
-      setDefaultBillable(true);
-      setShowAdd(false);
+      toast(sheet?.mode === "edit" ? "Project updated" : "Project created", "success");
+      setSheet(null);
       refresh();
     });
   };
@@ -112,225 +185,206 @@ export function ProjectsPageClient({
     startTransition(async () => {
       const res = await updateProjectAction({ id: project.id, status: next });
       if (!res.ok) {
-        alert(res.error);
+        toast(res.error, "error");
         return;
       }
       refresh();
     });
   };
 
-  const remove = (id: string) => {
-    if (!confirm("Delete this project? Remove time entries first if any."))
-      return;
+  const remove = async (project: ProjectRow) => {
+    const ok = await confirm({
+      title: `Delete “${project.name}”?`,
+      message: "Remove its time entries first, if any.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const res = await deleteProjectAction({ id });
+      const res = await deleteProjectAction({ id: project.id });
       if (!res.ok) {
-        alert(res.error);
+        toast(res.error, "error");
         return;
       }
+      toast("Project deleted", "success");
       refresh();
     });
   };
+
+  const rowActions = (p: ProjectRow) => (
+    <div className="flex items-center justify-end gap-1">
+      <Button variant="secondary" size="sm" className="h-9" disabled={pending} onClick={() => openEdit(p)}>
+        Edit
+      </Button>
+      <Button variant="ghost" size="sm" className="h-9 px-2 text-xs text-zinc-500" disabled={pending} onClick={() => toggleStatus(p)}>
+        {p.status === "Active" ? "Deactivate" : "Activate"}
+      </Button>
+      <Button variant="ghost" size="sm" className="h-9 px-2 text-xs text-red-600 dark:text-red-400" disabled={pending} onClick={() => void remove(p)}>
+        Delete
+      </Button>
+    </div>
+  );
 
   return (
     <>
       <PageHeader
         title="Projects"
-        description="Work streams linked to a client and status."
+        description="Work streams linked to a client, with hourly or flat-rate billing."
         actions={
-          <Button type="button" size="sm" onClick={() => setShowAdd((v) => !v)}>
-            {showAdd ? "Close form" : "Add project"}
-          </Button>
+          <Button onClick={openCreate}>Add project</Button>
         }
       />
 
       {listError ? (
-        <p className="mb-4 text-sm text-red-600 dark:text-red-400" role="alert">
-          {listError}
-        </p>
+        <p className="mb-4 text-sm text-red-600 dark:text-red-400" role="alert">{listError}</p>
       ) : null}
 
-      <div className="space-y-6">
-        <Card className={cn("max-w-xl", !showAdd && "hidden")}>
-          <CardHeader>
-            <CardTitle>Add project</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField id="pr-name" label="Name">
-              <Input
-                id="pr-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Project name"
-                disabled={pending}
-              />
-            </FormField>
-            <FormField id="pr-client" label="Client">
-              <Select
-                id="pr-client"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                disabled={pending || clients.length === 0}
-                className="w-full"
-              >
-                <option value="" disabled>
-                  {clients.length === 0 ? "Create a client first" : "Select client"}
-                </option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+      <Card>
+        <CardHeader>
+          <CardTitle>All projects</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-0">
+          {initialProjects.length === 0 ? (
+            <p className="py-12 text-center text-sm text-zinc-500">
+              No projects. Add a client, then click &quot;Add project&quot;.
+            </p>
+          ) : (
+            <>
+              {/* Mobile cards */}
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 md:hidden">
+                {initialProjects.map((p) => (
+                  <li key={p.id} className={cn("space-y-2 p-4", p.status !== "Active" && "opacity-60")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{p.name}</p>
+                        <p className="truncate text-sm text-zinc-500">{clientNameById[p.client_id] ?? "—"}</p>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    {p.description ? <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{p.description}</p> : null}
+                    <p className="text-xs text-zinc-500">
+                      {billingSummary(p)} · {p.default_billable ? "billable by default" : "non-billable by default"}
+                    </p>
+                    {rowActions(p)}
+                  </li>
                 ))}
-              </Select>
-            </FormField>
-            <FormField id="pr-status" label="Status">
-              <Select
-                id="pr-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-                disabled={pending}
-              >
-                <option value="Active">Active</option>
-                <option value="Completed">Completed</option>
-                <option value="On Hold">On hold</option>
-              </Select>
-            </FormField>
-            <FormField id="pr-desc" label="Description">
-              <Textarea
-                id="pr-desc"
-                rows={2}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional"
-                disabled={pending}
-              />
-            </FormField>
-            <div className="flex items-center gap-2">
-              <input
-                id="pr-billable"
-                type="checkbox"
-                checked={defaultBillable}
-                onChange={(e) => setDefaultBillable(e.target.checked)}
-                disabled={pending}
-                className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              />
-              <label
-                htmlFor="pr-billable"
-                className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Billable by default
-              </label>
-            </div>
-            {formError ? (
-              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-                {formError}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                disabled={pending || !clientId}
-                onClick={submitCreate}
-              >
-                {pending ? "Saving…" : "Create project"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={pending}
-                onClick={() => setShowAdd(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>All projects</CardTitle>
-          </CardHeader>
-          <CardContent className="px-0 pb-0 sm:px-0">
-            <TableWrap>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableTh>Name</TableTh>
-                    <TableTh>Client</TableTh>
-                    <TableTh>Status</TableTh>
-                    <TableTh>Billable</TableTh>
-                    <TableTh className="text-right"> </TableTh>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {initialProjects.length === 0 ? (
-                    <TableRow>
-                      <TableTd
-                        colSpan={5}
-                        className="py-12 text-center text-sm text-zinc-500"
-                      >
-                        No projects. Add a client, then click &quot;Add project&quot;.
-                      </TableTd>
-                    </TableRow>
-                  ) : (
-                    initialProjects.map((p) => (
-                      <TableRow
-                        key={p.id}
-                        className={cn(
-                          p.status !== "Active" && "opacity-50",
-                        )}
-                      >
-                        <TableTd className="font-medium">{p.name}</TableTd>
-                        <TableTd>{clientNameById[p.client_id] ?? "—"}</TableTd>
-                        <TableTd>
-                          <StatusBadge status={p.status} />
-                        </TableTd>
-                        <TableTd>
-                          <span
-                            className={cn(
-                              "text-xs font-medium",
-                              p.default_billable
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-zinc-400 dark:text-zinc-500",
-                            )}
-                          >
-                            {p.default_billable ? "Yes" : "No"}
-                          </span>
-                        </TableTd>
-                        <TableTd className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                              disabled={pending}
-                              onClick={() => toggleStatus(p)}
-                            >
-                              {p.status === "Active" ? "Deactivate" : "Activate"}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
-                              disabled={pending}
-                              onClick={() => remove(p.id)}
-                              aria-label="Delete project"
-                            >
-                              <IconTrash />
-                            </Button>
-                          </div>
-                        </TableTd>
+              </ul>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <TableWrap className="sm:rounded-none sm:border-0">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableTh>Name</TableTh>
+                        <TableTh>Client</TableTh>
+                        <TableTh>Status</TableTh>
+                        <TableTh>Billing</TableTh>
+                        <TableTh>Billable</TableTh>
+                        <TableTh className="text-right"> </TableTh>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableWrap>
-          </CardContent>
-        </Card>
-      </div>
+                    </TableHead>
+                    <TableBody>
+                      {initialProjects.map((p) => (
+                        <TableRow key={p.id} className={cn(p.status !== "Active" && "opacity-50")}>
+                          <TableTd>
+                            <p className="font-medium">{p.name}</p>
+                            {p.description ? <p className="max-w-xs truncate text-xs text-zinc-500">{p.description}</p> : null}
+                          </TableTd>
+                          <TableTd>{clientNameById[p.client_id] ?? "—"}</TableTd>
+                          <TableTd><StatusBadge status={p.status} /></TableTd>
+                          <TableTd className="whitespace-nowrap text-xs">{billingSummary(p)}</TableTd>
+                          <TableTd>
+                            <span className={cn("text-xs font-medium", p.default_billable ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400")}>
+                              {p.default_billable ? "Yes" : "No"}
+                            </span>
+                          </TableTd>
+                          <TableTd className="text-right">{rowActions(p)}</TableTd>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableWrap>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Sheet
+        open={sheet !== null}
+        onClose={() => setSheet(null)}
+        title={sheet?.mode === "edit" ? "Edit project" : "Add project"}
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <FormField id="pr-name" label="Name">
+            <Input id="pr-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Project name" disabled={pending} required />
+          </FormField>
+          <FormField id="pr-client" label="Client">
+            <Select id="pr-client" value={form.clientId} onChange={(e) => set("clientId", e.target.value)} disabled={pending || clients.length === 0} required>
+              <option value="" disabled>{clients.length === 0 ? "Create a client first" : "Select client"}</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField id="pr-status" label="Status">
+            <Select id="pr-status" value={form.status} onChange={(e) => set("status", e.target.value as ProjectStatus)} disabled={pending}>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On hold</option>
+            </Select>
+          </FormField>
+          <FormField id="pr-desc" label="Description">
+            <Textarea id="pr-desc" rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optional" disabled={pending} />
+          </FormField>
+          <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
+            <input type="checkbox" checked={form.defaultBillable} onChange={(e) => set("defaultBillable", e.target.checked)} disabled={pending} className="h-5 w-5 rounded border-zinc-300 accent-emerald-600" />
+            Billable by default
+          </label>
+
+          <FormField id="pr-billing" label="Billing type">
+            <Select id="pr-billing" value={form.billingType} onChange={(e) => set("billingType", e.target.value as BillingType)} disabled={pending}>
+              {(Object.keys(BILLING_LABELS) as BillingType[]).map((k) => (
+                <option key={k} value={k}>{BILLING_LABELS[k]}</option>
+              ))}
+            </Select>
+          </FormField>
+          {form.billingType !== "hourly" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                id="pr-flat"
+                label={form.billingType === "fixed_monthly" ? "Amount per month (€)" : "Total amount (€)"}
+              >
+                <Input id="pr-flat" type="number" inputMode="decimal" min={0} step={0.01} value={form.flatAmount} onChange={(e) => set("flatAmount", e.target.value)} disabled={pending} />
+              </FormField>
+              {form.billingType === "fixed_budget" ? (
+                <FormField id="pr-budget" label="Budget hours">
+                  <Input id="pr-budget" type="number" inputMode="decimal" min={0} step={0.25} value={form.budgetHours} onChange={(e) => set("budgetHours", e.target.value)} disabled={pending} />
+                </FormField>
+              ) : null}
+              <p className="col-span-2 text-xs text-zinc-500">
+                {form.billingType === "fixed_budget"
+                  ? "Revenue accrues pro-rata (amount ÷ budget hours per billable hour) until the budget is used up."
+                  : "The monthly amount counts once for each month with billable entries, on the last billable day of the month."}
+              </p>
+            </div>
+          ) : null}
+
+          {formError ? <p className="text-sm text-red-600 dark:text-red-400" role="alert">{formError}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button variant="secondary" disabled={pending} onClick={() => setSheet(null)}>Cancel</Button>
+            <Button type="submit" disabled={pending || !form.clientId || !form.name.trim()}>
+              {pending ? "Saving…" : sheet?.mode === "edit" ? "Save changes" : "Create project"}
+            </Button>
+          </div>
+        </form>
+      </Sheet>
     </>
   );
 }

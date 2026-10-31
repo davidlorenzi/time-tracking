@@ -1,5 +1,25 @@
 export type ProjectStatus = "Active" | "Completed" | "On Hold";
 
+export type BillingType = "hourly" | "fixed_budget" | "fixed_monthly";
+
+export type SettingsColors = {
+  workday: string;
+  weekend: string;
+  holiday: string;
+  below_threshold: string;
+  reached_threshold: string;
+  over_threshold: string;
+};
+
+export type AppSettingsRow = {
+  id: number;
+  billable_threshold_hours: number;
+  colors: Partial<SettingsColors>;
+  extra_holidays: string[];
+  work_days: number[];
+  updated_at: string;
+};
+
 export type ClientRow = {
   id: string;
   name: string;
@@ -15,6 +35,9 @@ export type ProjectRow = {
   client_id: string;
   description: string | null;
   default_billable: boolean;
+  billing_type: BillingType;
+  flat_amount: number | null;
+  budget_hours: number | null;
   created_at: string;
 };
 
@@ -61,6 +84,9 @@ export type Database = {
           client_id: string;
           description?: string | null;
           default_billable?: boolean;
+          billing_type?: BillingType;
+          flat_amount?: number | null;
+          budget_hours?: number | null;
           created_at?: string;
         };
         Update: {
@@ -70,6 +96,9 @@ export type Database = {
           client_id?: string;
           description?: string | null;
           default_billable?: boolean;
+          billing_type?: BillingType;
+          flat_amount?: number | null;
+          budget_hours?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -81,6 +110,12 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      app_settings: {
+        Row: AppSettingsRow;
+        Insert: Partial<AppSettingsRow>;
+        Update: Partial<AppSettingsRow>;
+        Relationships: [];
       };
       time_entries: {
         Row: TimeEntryRow;
