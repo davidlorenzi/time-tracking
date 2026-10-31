@@ -45,6 +45,7 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
   const [duration, setDuration] = useState(getLastDurationHours);
   const [projectOverride, setProjectOverride] = useState<string | null>(null);
   const [billable, setBillable] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [message, setMessage] = useState<{
     type: "ok" | "err";
     text: string;
@@ -126,12 +127,24 @@ export function QuickAddTimeBar({ projects }: QuickAddTimeBarProps) {
   return (
     <div
       className={cn(
-        "sticky top-14 z-30 border-b border-zinc-200/90 bg-background/95 backdrop-blur-md dark:border-zinc-800/90",
-        "-mx-4 px-4 py-2 md:-mx-6 md:px-6",
+        "z-30 border-b border-zinc-200/90 bg-background/95 backdrop-blur-md dark:border-zinc-800/90 sm:sticky sm:top-14",
+        "px-4 py-2 md:px-6",
       )}
     >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex h-10 w-full items-center justify-between rounded-lg border border-zinc-200 px-3 text-sm font-medium dark:border-zinc-700 sm:hidden"
+      >
+        <span>{expanded ? "Hide quick add" : "+ Quick add time entry"}</span>
+        <span aria-hidden>{expanded ? "▴" : "▾"}</span>
+      </button>
       <form
-        className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+        className={cn(
+          "mx-auto max-w-6xl flex-col gap-2 sm:flex sm:flex-row sm:items-center sm:gap-3",
+          expanded ? "mt-2 flex" : "hidden",
+        )}
         onSubmit={(e) => {
           e.preventDefault();
           submit();

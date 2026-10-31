@@ -1,22 +1,42 @@
 import { useEffect, useState } from "react";
 
-import { localISODate, weekRangeContaining } from "../lib/dates";
+import { localISODate, monthRangeContaining, weekRangeContaining } from "../lib/dates";
 import { fetchSummary, type PeriodTotals } from "../lib/queries";
 
+const moneyFormatter = new Intl.NumberFormat("it-IT", {
+  style: "currency",
+  currency: "EUR",
+});
+
 function formatMoney(n: number) {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return moneyFormatter.format(n);
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+      <p className="text-xs uppercase tracking-wide text-[var(--subtle)]">
         {label}
       </p>
-      <p className="text-base font-semibold tabular-nums">{value}</p>
+      <p className="text-xl font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function PeriodCard({
+  title,
+  totals,
+}: {
+  title: string;
+  totals: PeriodTotals | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--control-border)] bg-[var(--control-bg)] p-3">
+      <p className="col-span-2 text-sm font-medium text-[var(--foreground)]">
+        {title}
+      </p>
+      <Stat label="Hours" value={(totals?.hours ?? 0).toFixed(1)} />
+      <Stat label="Revenue" value={formatMoney(totals?.revenue ?? 0)} />
     </div>
   );
 }
@@ -24,73 +44,35 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function SummaryPanel({ refreshKey }: { refreshKey: number }) {
   const [today, setToday] = useState<PeriodTotals | null>(null);
   const [week, setWeek] = useState<PeriodTotals | null>(null);
+  const [month, setMonth] = useState<PeriodTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [manualRefreshKey, setManualRefreshKey] = useState(0);
 
   useEffect(() => {
     const day = localISODate();
-    const { from, to } = weekRangeContaining(new Date());
-    setLoading(true);
+    const now = new Date();
+    const { from: weekFrom, to: weekTo } = weekRangeContaining(now);
+    const { from: monthFrom, to: monthTo } = monthRangeContaining(now);
     setError(null);
-    Promise.all([fetchSummary(day, day), fetchSummary(from, to)])
-      .then(([t, w]) => {
+    Promise.all([
+      fetchSummary(day, day),
+      fetchSummary(weekFrom, weekTo),
+      fetchSummary(monthFrom, monthTo),
+    ])
+      .then(([t, w, m]) => {
         setToday(t);
         setWeek(w);
+        setMonth(m);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [refreshKey, manualRefreshKey]);
+      .catch((err) => setError(err.message));
+  }, [refreshKey]);
+
+  if (error) return <p className="p-3 text-sm text-red-600">{error}</p>;
 
   return (
-    <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-          Summary
-        </p>
-        <button
-          type="button"
-          onClick={() => setManualRefreshKey((k) => k + 1)}
-          disabled={loading}
-          aria-label="Refresh summary"
-          className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114.5-3.5M19.5 15a8 8 0 01-14.5 3.5"
-            />
-          </svg>
-        </button>
-      </div>
-
-      {error ? (
-        <p className="text-xs text-red-600">{error}</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              Today
-            </p>
-            <Stat label="Hours" value={(today?.hours ?? 0).toFixed(1)} />
-            <Stat label="Revenue" value={formatMoney(today?.revenue ?? 0)} />
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              This week
-            </p>
-            <Stat label="Hours" value={(week?.hours ?? 0).toFixed(1)} />
-            <Stat label="Revenue" value={formatMoney(week?.revenue ?? 0)} />
-          </div>
-        </div>
-      )}
+    <div className="flex flex-1 flex-col justify-center gap-2.5 p-3">
+      <PeriodCard title="Today" totals={today} />
+      <PeriodCard title="This week" totals={week} />
+      <PeriodCard title="This month" totals={month} />
     </div>
   );
 }

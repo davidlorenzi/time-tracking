@@ -17,3 +17,25 @@ export function weekRangeContaining(d: Date): { from: string; to: string } {
   sunday.setDate(monday.getDate() + 6);
   return { from: localISODate(monday), to: localISODate(sunday) };
 }
+
+/** The last `n` local calendar dates (oldest first), ending today. */
+export function lastNDays(n: number, today = new Date()): string[] {
+  return Array.from({ length: n }, (_, i) =>
+    localISODate(
+      new Date(today.getFullYear(), today.getMonth(), today.getDate() - (n - 1 - i)),
+    ),
+  );
+}
+
+/** Parses a YYYY-MM-DD string as a local-time date. */
+export function parseISODate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** First-to-last day of the calendar month containing `d`, in local time. */
+export function monthRangeContaining(d: Date): { from: string; to: string } {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { from: localISODate(first), to: localISODate(last) };
+}

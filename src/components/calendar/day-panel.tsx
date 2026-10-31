@@ -120,7 +120,9 @@ export function DayPanel({ date, projects, onClose }: Props) {
       description={
         projectView
           ? "Latest entries on this project"
-          : `${formatHours(billable)} billable · ${formatHours(total - billable)} non-billable`
+          : loading
+            ? "Loading…"
+            : `${formatHours(billable)} billable · ${formatHours(total - billable)} non-billable`
       }
       headerLead={
         projectView ? (
