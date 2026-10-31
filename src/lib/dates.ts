@@ -47,3 +47,24 @@ export function parseMonthValue(value: string): { year: number; month: number } 
 export function formatMonthValue(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
+
+/** Weeks (Monday first) of day cells covering a month; `null` pads outside the month. */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const first = new Date(year, month - 1, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(year, month, 0).getDate();
+  const cells: (string | null)[] = Array(lead).fill(null);
+  for (let d = 1; d <= days; d++) {
+    cells.push(`${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+/** Day of week (0=Sun..6=Sat) of a YYYY-MM-DD. */
+export function isoDayOfWeek(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay();
+}

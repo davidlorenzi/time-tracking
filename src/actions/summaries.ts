@@ -37,3 +37,16 @@ export async function getMonthlySummaryAction(
     parsed.data.month,
   );
 }
+
+/** Any range, with comparison against the equivalent previous period. */
+export async function getRangeSummaryAction(
+  input: unknown,
+): Promise<ActionResult<PeriodSummary>> {
+  const parsed = parseActionInput(summaryRangeSchema, input);
+  if (!parsed.ok) return parsed;
+
+  const supabase = await createClient();
+  return summariesRepo.getSummaryForRange(supabase, parsed.data.from, parsed.data.to, {
+    withComparison: true,
+  });
+}

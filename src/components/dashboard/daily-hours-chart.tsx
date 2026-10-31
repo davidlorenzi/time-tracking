@@ -11,17 +11,13 @@ import {
 } from "recharts";
 
 import type { PeriodSummary } from "@/lib/data/summaries";
+import { formatMoney } from "@/lib/format";
 
 type DailyHoursChartProps = {
   days: PeriodSummary["byDay"];
+  /** Called with the day (YYYY-MM-DD) when a bar is clicked. */
+  onSelectDay?: (date: string) => void;
 };
-
-function formatMoney(n: number) {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 function formatDayLabel(date: string) {
   const [y, m, d] = date.split("-").map(Number);
@@ -58,7 +54,7 @@ function ChartTooltip({
   );
 }
 
-export function DailyHoursChart({ days }: DailyHoursChartProps) {
+export function DailyHoursChart({ days, onSelectDay }: DailyHoursChartProps) {
   if (days.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No data.</p>;
   }
@@ -71,7 +67,15 @@ export function DailyHoursChart({ days }: DailyHoursChartProps) {
   return (
     <div className="h-64 text-zinc-500 dark:text-zinc-400">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
+          style={onSelectDay ? { cursor: "pointer" } : undefined}
+          onClick={(state) => {
+            const label = state?.activeLabel;
+            if (onSelectDay && typeof label === "string") onSelectDay(label);
+          }}
+        >
           <CartesianGrid vertical={false} stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="date"

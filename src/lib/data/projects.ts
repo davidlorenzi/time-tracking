@@ -21,6 +21,9 @@ export async function createProject(
       client_id: input.client_id,
       description: optionalTextToNull(input.description),
       default_billable: input.default_billable,
+      billing_type: input.billing_type,
+      flat_amount: input.billing_type === "hourly" ? null : (input.flat_amount ?? null),
+      budget_hours: input.billing_type === "fixed_budget" ? (input.budget_hours ?? null) : null,
     })
     .select()
     .single();
@@ -43,6 +46,25 @@ export async function updateProject(
     row.description = optionalTextToNull(patch.description);
   }
   if (patch.default_billable !== undefined) row.default_billable = patch.default_billable;
+  if (patch.billing_type !== undefined) {
+    row.billing_type = patch.billing_type;
+    if (patch.billing_type === "hourly") {
+      row.flat_amount = null;
+      row.budget_hours = null;
+    } else if (patch.billing_type === "fixed_monthly") {
+      row.budget_hours = null;
+    }
+  }
+  if (patch.flat_amount !== undefined && patch.billing_type !== "hourly") {
+    row.flat_amount = patch.flat_amount;
+  }
+  if (
+    patch.budget_hours !== undefined &&
+    patch.billing_type !== "hourly" &&
+    patch.billing_type !== "fixed_monthly"
+  ) {
+    row.budget_hours = patch.budget_hours;
+  }
 
   if (Object.keys(row).length === 0) {
     return failure("No fields to update.");
